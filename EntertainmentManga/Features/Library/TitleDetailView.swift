@@ -11,9 +11,10 @@
 //
 //  NOTE: iOS 16+（SwiftUI Layout API）
 //
-//  このファイルは「タグの折返し」を旧FlowLayout実装から
-//  iOS16+の `Layout` API を使う実装へ最小差分で置き換えています。
-//  変更箇所は `// ✅ Changed:` のコメントを付けています。
+//  このファイルは、タグの折返しを iOS16+ の `Layout` API に刷新（前回）し、
+//  さらに「読む」ボタンから ReaderView へ遷移する導線（今回）を追加しています。
+//  変更箇所には `// ✅ Changed:` と `// ✅ Added:` を付与。
+//  NavigationLink を使った最小遷移（スタック遷移）で、状態管理は不要です。
 //
 
 import SwiftUI
@@ -73,6 +74,22 @@ struct TitleDetailView: View {
                     Text("あらすじ").font(.headline)
                     Text(title.synopsis)
                 }
+
+                // ✅ Added: 「読む」への導線（NavigationLink）
+                // 作品名から簡易スラッグを生成し、Bundle 内のページ画像ディレクトリに遷移。
+                // 実運用では Title に pagesDirectory を持たせるのが堅実です。
+                NavigationLink {
+                    ReaderView(
+                        directory: "Samples/works/\(slugify(title.name))/vol01/pages",
+                        startIndex: 0
+                    )
+                } label: {
+                    Label("読む", systemImage: "book.pages")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 8)
             }
             .padding()
         }
@@ -93,7 +110,7 @@ struct TitleDetailView: View {
 
 // ✅ Changed: タグ群の表示を iOS16+ の `Layout` API で実装した FlowTagsLayout に一新。
 // これにより `buildExpression … does not conform to 'View'` エラーが解消されます。
-// 旧 FlowLayout/_FlowLayout と GeometryReader 内の未使用変数(width/height)を完全撤去。
+// 旧 FlowLayout/_FlowLayout と GeometryReader 内の未使用変数(width/height)は完全撤去。
 
 private struct WrapTags: View {
     let tags: [String]
@@ -183,6 +200,19 @@ private struct FlowTagsLayout: Layout {
     }
 }
 
+// MARK: - Utility
+
+// ✅ Added: 作品名を Bundle パス用の簡易スラッグに変換（英数字と -_ のみ残す）
+private func slugify(_ s: String) -> String {
+    let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+    let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+    let replaced = trimmed.replacingOccurrences(of: " ", with: "-")
+    let filtered = replaced.unicodeScalars.map { allowed.contains($0) ? String($0) : "-" }.joined()
+    // 連続ハイフンの潰し（雑だが最小実装として）
+    let squashed = filtered.replacingOccurrences(of: "--", with: "-")
+    return squashed
+}
+
 // MARK: - Preview（任意）
 
 #if DEBUG
@@ -191,7 +221,7 @@ struct TitleDetailView_Previews: PreviewProvider {
         // プレビュー用のダミーデータ
         let sample = Title(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
-            name: "銀河配達人ガール",
+            name: "銀河 配達人ガール", // スペース混じりでも slugify で処理
             author: "星見 ルカ",
             synopsis: "宇宙コロニー間を走る新人配達員が、失われた荷物の謎を追う爽快アドベンチャー。",
             genres: ["SF", "アドベンチャー", "スペース", "友情", "成長"],
