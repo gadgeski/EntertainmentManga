@@ -1,0 +1,69 @@
+# --- macOS 共通 ---
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --- Xcode / iOS ビルド生成物 ---
+DerivedData/
+build/
+*.ipa
+*.dSYM
+*.dSYM.zip
+# Xcode の一時退避
+*.moved-aside
+
+# --- Xcode プロジェクト内のユーザー固有ファイル ---
+*.xcuserstate
+xcuserdata/
+# （.xcodeproj / .xcworkspace 自体はコミット対象）
+
+# --- Swift Package Manager ---
+.build/
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.swiftpm/xcode/xcshareddata/IDEWorkspaceChecks.plist
+# lockファイルはアプリでは基本コミット推奨
+# Package.resolved
+
+# --- CocoaPods（使う場合のみ） ---
+# Pods/ は通常 ignore（再現は Podfile + Podfile.lock から）
+Pods/
+# Podfile.lock はコミット推奨（依存の再現性）
+# Podfile.lock
+
+# --- Carthage（使う場合のみ） ---
+Carthage/Build/
+# Cartfile.resolved はコミット推奨
+# Cartfile.resolved
+
+# --- fastlane（使う場合のみ） ---
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
+fastlane/screenshots/
+fastlane/screenshots/**/*.png
+fastlane/readme.md
+
+# --- 秘密情報・資格情報 ---
+# 例: APIキー、認証ファイル、証明書類など
+.env
+.env.*
+*.private.*
+*.secret.*
+Secrets.xcconfig
+*.p12
+*.pem
+*.mobileprovision
+GoogleService-Info.plist
+FirebaseAppIDFile.json
+
+# --- ログ / 一時ファイル ---
+*.log
+*.tmp
+*.swp
+*.lock
+
+# --- SwiftLint/Formatter（設定は通常コミット推奨なので ignore しない）
+# .swiftlint.yml  # ←通常はコミット
+
+# --- 画像/データ（生成物なら ignore、手元管理の固定アセットはコミット）
+# GeneratedAssets/   # 自動生成アセットを分けている場合のみ
