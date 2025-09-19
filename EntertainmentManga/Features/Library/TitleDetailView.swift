@@ -17,18 +17,26 @@
 //  NavigationLink を使った最小遷移（スタック遷移）で、状態管理は不要です。
 //
 
+//
+//  TitleDetailView.swift
+//  Features/Library
+//
+
+//
+//  TitleDetailView.swift
+//  Features/Library
+//
+
 import SwiftUI
 
-// MARK: - TitleDetailView
-
 struct TitleDetailView: View {
-    let title: Title  // Models/Title.swift で定義済みの型を使用
+    let title: Title
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
 
-                // ヘッダー：カバー・基本情報
+                // --- ヘッダー（省略なしで記載） ---
                 HStack(alignment: .top, spacing: 16) {
                     if let name = title.coverImageName,
                        let uiImage = UIImage(named: name) {
@@ -57,31 +65,25 @@ struct TitleDetailView: View {
                     }
                 }
 
-                // ジャンル（タグの折返し表示）
+                // --- タグ（FlowTagsLayout を利用） ---
                 if !title.genres.isEmpty {
-                    HStack {
-                        Text("ジャンル:").bold()
-                        Spacer()
-                    }
-
-                    // ✅ Changed: 旧 FlowLayout 呼び出しを廃止し、
-                    // iOS16+ Layout API ベースの FlowTagsLayout に置換。
+                    HStack { Text("ジャンル:").bold(); Spacer() }
                     WrapTags(tags: title.genres)
                 }
 
-                // あらすじ
+                // --- あらすじ ---
                 VStack(alignment: .leading, spacing: 8) {
                     Text("あらすじ").font(.headline)
                     Text(title.synopsis)
                 }
 
-                // ✅ Added: 「読む」への導線（NavigationLink）
-                // 作品名から簡易スラッグを生成し、Bundle 内のページ画像ディレクトリに遷移。
-                // 実運用では Title に pagesDirectory を持たせるのが堅実です。
+                // ✅ Changed: ReaderView に titleId を渡す
+                // ✅ Added: 作品名から生成したスラッグをディレクトリに使用
                 NavigationLink {
                     ReaderView(
                         directory: "Samples/works/\(slugify(title.name))/vol01/pages",
-                        startIndex: 0
+                        startIndex: 0,
+                        titleId: title.id
                     )
                 } label: {
                     Label("読む", systemImage: "book.pages")
@@ -95,6 +97,7 @@ struct TitleDetailView: View {
         }
         .navigationTitle("詳細")
         .navigationBarTitleDisplayMode(.inline)
+        .themedBackground()
     }
 
     private func formatted(date: Date) -> String {
@@ -108,15 +111,9 @@ struct TitleDetailView: View {
 
 // MARK: - Tags (Wrap + Layout)
 
-// ✅ Changed: タグ群の表示を iOS16+ の `Layout` API で実装した FlowTagsLayout に一新。
-// これにより `buildExpression … does not conform to 'View'` エラーが解消されます。
-// 旧 FlowLayout/_FlowLayout と GeometryReader 内の未使用変数(width/height)は完全撤去。
-
 private struct WrapTags: View {
     let tags: [String]
     var body: some View {
-
-        // ✅ Changed: FlowTagsLayout は Layout 準拠の「レイアウト」として View ビルダーで使う
         FlowTagsLayout(spacing: 8) {
             ForEach(tags, id: \.self) { g in
                 Text(g)
@@ -126,74 +123,48 @@ private struct WrapTags: View {
                     .background(Capsule().fill(Color.secondary.opacity(0.12)))
             }
         }
-        .animation(.default, value: tags) // 任意：タグ変更時の見た目の滑らかさ
+        .animation(.default, value: tags)
     }
 }
 
-/// iOS16+ の Layout API を用いた「横幅に応じて折り返す」シンプルなフローレイアウト。
 private struct FlowTagsLayout: Layout {
     var spacing: CGFloat = 8
 
-    // レイアウト計算：必要な全体サイズを返す
     func sizeThatFits(proposal: ProposedViewSize,
                       subviews: Subviews,
                       cache: inout ()) -> CGSize {
         let maxWidth = proposal.width ?? .infinity
         guard maxWidth.isFinite else {
-            // 幅が未定義なら、縦に積んだ仮サイズ（フォールバック）
-            let totalHeight = subviews.reduce(0) { partial, s in
-                partial + s.sizeThatFits(.unspecified).height
-            } + spacing * CGFloat(max(subviews.count - 1, 0))
+            let totalHeight = subviews.reduce(0) { $0 + $1.sizeThatFits(.unspecified).height } +
+                              spacing * CGFloat(max(subviews.count - 1, 0))
             return CGSize(width: 0, height: totalHeight)
         }
 
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
         for s in subviews {
             let size = s.sizeThatFits(.unspecified)
-
-            // 改行判定：次を置くと最大幅を超えるなら折返し
             if x > 0, x + size.width > maxWidth {
-                x = 0
-                y += rowHeight + spacing
-                rowHeight = 0
+                x = 0; y += rowHeight + spacing; rowHeight = 0
             }
-
             rowHeight = max(rowHeight, size.height)
             x += size.width + spacing
         }
-
         return CGSize(width: maxWidth, height: y + rowHeight)
     }
 
-    // 実際の配置
     func placeSubviews(in bounds: CGRect,
                        proposal: ProposedViewSize,
                        subviews: Subviews,
                        cache: inout ()) {
         let maxWidth = bounds.width
-
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
         for s in subviews {
             let size = s.sizeThatFits(.unspecified)
-
-            // 改行判定
             if x > 0, x + size.width > maxWidth {
-                x = 0
-                y += rowHeight + spacing
-                rowHeight = 0
+                x = 0; y += rowHeight + spacing; rowHeight = 0
             }
-
-            s.place(
-                at: CGPoint(x: bounds.minX + x, y: bounds.minY + y),
-                proposal: ProposedViewSize(width: size.width, height: size.height)
-            )
-
+            s.place(at: CGPoint(x: bounds.minX + x, y: bounds.minY + y),
+                    proposal: ProposedViewSize(width: size.width, height: size.height))
             rowHeight = max(rowHeight, size.height)
             x += size.width + spacing
         }
@@ -202,43 +173,45 @@ private struct FlowTagsLayout: Layout {
 
 // MARK: - Utility
 
-// ✅ Added: 作品名を Bundle パス用の簡易スラッグに変換（英数字と -_ のみ残す）
+// ✅ Added: 作品名から簡易スラッグを生成（英数字と -_ のみ）
+// 例: "銀河 配達人ガール" -> "-------" になる可能性があるので、
+// 実運用では Title.pagesDirectory を持たせる方が堅実です。
+// ここでは“最小修正”として slugify を提供します。
 private func slugify(_ s: String) -> String {
+    // ダイアクリティカルマークを除去（é -> e など）
+    let folded = s.folding(options: [.diacriticInsensitive, .widthInsensitive, .caseInsensitive], locale: .current)
+    // スペースをハイフンへ
+    let replaced = folded.replacingOccurrences(of: " ", with: "-")
+    // 許可文字セット（英数字と -_）
     let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
-    let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
-    let replaced = trimmed.replacingOccurrences(of: " ", with: "-")
-    let filtered = replaced.unicodeScalars.map { allowed.contains($0) ? String($0) : "-" }.joined()
-    // 連続ハイフンの潰し（雑だが最小実装として）
-    let squashed = filtered.replacingOccurrences(of: "--", with: "-")
-    return squashed
+    // 許可外はハイフンに置換
+    var out = replaced.unicodeScalars.map { allowed.contains($0) ? String($0) : "-" }.joined()
+    // 連続ハイフンの圧縮 & 両端ハイフン除去 & 小文字化
+    while out.contains("--") { out = out.replacingOccurrences(of: "--", with: "-") }
+    out = out.trimmingCharacters(in: CharacterSet(charactersIn: "-")).lowercased()
+    return out.isEmpty ? "untitled" : out
 }
 
-// MARK: - Preview（任意）
+// MARK: - Preview
 
 #if DEBUG
 struct TitleDetailView_Previews: PreviewProvider {
     static var previews: some View {
-        // プレビュー用のダミーデータ
         let sample = Title(
-            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
-            name: "銀河 配達人ガール", // スペース混じりでも slugify で処理
+            id: UUID(),
+            name: "銀河 配達人ガール",
             author: "星見 ルカ",
             synopsis: "宇宙コロニー間を走る新人配達員が、失われた荷物の謎を追う爽快アドベンチャー。",
-            genres: ["SF", "アドベンチャー", "スペース", "友情", "成長"],
+            genres: ["SF", "アドベンチャー", "スペース"],
             volumes: 3,
             updatedAt: ISO8601DateFormatter().date(from: "2025-08-20T00:00:00Z") ?? .now,
             coverImageName: nil
         )
+        NavigationStack { TitleDetailView(title: sample) }
+            .environment(\.colorScheme, .light)
 
-        NavigationStack {
-            TitleDetailView(title: sample)
-        }
-        .environment(\.colorScheme, .light)
-
-        NavigationStack {
-            TitleDetailView(title: sample)
-        }
-        .environment(\.colorScheme, .dark)
+        NavigationStack { TitleDetailView(title: sample) }
+            .environment(\.colorScheme, .dark)
     }
 }
 #endif
